@@ -67,7 +67,7 @@
         // `result` event is triggered when a user makes a selection
         // Add a marker at the result's coordinates
         geocoder.on('result', function(ev) {
-            alert(ev.result.center);
+            //alert(ev.result.center);
             var lon = ev.result.center[0];
             var lat = ev.result.center[1];
             sunTimes(lon, lat);
