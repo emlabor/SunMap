@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SunMap</title>
+    <link rel="stylesheet" href="style.css">
+    <link href='https://api.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.css' rel='stylesheet'>
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.2.0/mapbox-gl-geocoder.css' type='text/css'>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.js'></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.2.0/mapbox-gl-geocoder.min.js'></script>
+</head>
+<body>
+    <div id="mapid"></div>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZW1sYWJvciIsImEiOiJjanl0Y3dtMDkwMmtzM2dvMHBscnAyM203In0.fYKIPHR3q4c0TYTmmVoXkw';
+        timezoneKey = 'PKXTW6OOP7JX';
+        var map = new mapboxgl.Map({
+            container: 'mapid', // Container ID
+            style: 'mapbox://styles/mapbox/streets-v11', // Map style to use
+            center: [-74.0060, 40.7218], // Starting position [lng, lat]
+            zoom: 12, // Starting zoom level
+        });
+
+        var geocoder = new MapboxGeocoder({ // Initialize the geocoder
+            accessToken: mapboxgl.accessToken, // Set the access token
+            mapboxgl: mapboxgl, // Set the mapbox-gl instance
+            marker: false, // Do not use the default marker style
+        });
+
+        // Add the geocoder to the map
+        map.addControl(geocoder);
+
+        // After the map style has loaded on the page,
+        // add a source layer and default styling for a single point
+        map.on('load', function() {
+            map.addSource('single-point', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: []
+            }
+        });
+
+        map.addLayer({
+            id: 'point',
+            source: 'single-point',
+            type: 'circle',
+            paint: {
+                'circle-radius': 10,
+                'circle-color': '#448ee4'
+            }
+         });
+
+         function sunTimes(lon, lat){
+            var sunQuery = "https://api.sunrise-sunset.org/json?lat=" + lat + "&lng=" + lon;
+            var sunRequest = new XMLHttpRequest();
+            sunRequest.open('GET', sunQuery, false);
+            sunRequest.send();
+            alert(sunRequest.responseText);
+         }
+
+        // Listen for the `result` event from the Geocoder
+        // `result` event is triggered when a user makes a selection
+        // Add a marker at the result's coordinates
+        geocoder.on('result', function(ev) {
+            alert(ev.result.center);
+            var lon = ev.result.center[0];
+            var lat = ev.result.center[1];
+            sunTimes(lon, lat);
+            map.getSource('single-point').setData(ev.result.geometry);
+            });
+        });
+    </script>
+</body>
+</html>
