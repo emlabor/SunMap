@@ -16,19 +16,17 @@
         var map = new mapboxgl.Map({
             container: 'mapid', // Container ID
             style: 'mapbox://styles/mapbox/streets-v11', // Map style to use
-            center: [-74.0060, 40.7218], // Starting position [lng, lat]
-            zoom: 12, // Starting zoom level
+            center: [-89.39, 43.0853056], // Starting position [lng, lat]
+            zoom: 11, // Starting zoom level
             attributionControl: false,
         });
 
-        map.addControl(new mapboxgl.AttributionControl({
-            customAttribution: '<a href="https://www.sunrise-sunset.org/">© Sunrise Sunset</a>'
-        }));
+        map.addControl(new mapboxgl.AttributionControl());
 
         var geocoder = new MapboxGeocoder({ // Initialize the geocoder
             accessToken: mapboxgl.accessToken, // Set the access token
             mapboxgl: mapboxgl, // Set the mapbox-gl instance
-            marker: false, // Do not use the default marker style
+            marker: true, // Do not use the default marker style
         });
 
         // Add the geocoder to the map
@@ -45,7 +43,8 @@
             }
         });
 
-        map.addLayer({
+        // To add a custom marker later
+        /*map.addLayer({
             id: 'point',
             source: 'single-point',
             type: 'circle',
@@ -53,14 +52,29 @@
                 'circle-radius': 10,
                 'circle-color': '#448ee4'
             }
-         });
+         });*/
 
-         function sunTimes(lon, lat){
-            var sunQuery = "https://api.sunrise-sunset.org/json?lat=" + lat + "&lng=" + lon;
-            var sunRequest = new XMLHttpRequest();
-            sunRequest.open('GET', sunQuery, false);
-            sunRequest.send();
-            alert(sunRequest.responseText);
+         function getDistricts(lon, lat){
+            // Retrieve ward and district data from City of Madison Open Data
+            var distQuery = "https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/11/query?where=1%3D1&outFields=OBJECTID,WARD,ALD_DIST,SUP_DIST,ASM_DIST,SEN_DIST,ADDRESS,HANDICAP_ACCESS,SPEC_COMMENTS,PHONE_NO,BALLOT_COLOR&geometry=" + lon + "%2C%20" + lat + "&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&returnGeometry=false&outSR=4326&f=json"
+            var distRequest = new XMLHttpRequest();
+            distRequest.open('GET', distQuery, false);
+            distRequest.send();
+            // Return ward, aldermanic, supervisory, assembly, and senate districts
+            var districts = JSON.parse(distRequest.responseText).features[0].attributes;
+            return districts; 
+         }
+
+         function createPopup(lon, lat){
+            var districts = getDistricts(lon, lat);
+            // Ward and aldermanic district will be null for suburbs
+            var ward = (districts.WARD == -1) ? 'N/A' : districts.WARD;
+            var alder = (districts.ALD_DIST == -1) ? 'N/A' : districts.ALD_DIST;
+
+            var popup = new mapboxgl.Popup({ closeOnClick: false })
+                .setLngLat([lon, lat])
+                .setHTML('<h1>Ward ' + ward + '</h1><p>Aldermanic district ' + alder + '<br>Supervisory district ' + districts.SUP_DIST + '<br>Assembly district ' + districts.ASM_DIST + '<br>Senate district ' + districts.SEN_DIST + '</p>')
+                .addTo(map);
          }
 
         // Listen for the `result` event from the Geocoder
@@ -70,9 +84,11 @@
             //alert(ev.result.center);
             var lon = ev.result.center[0];
             var lat = ev.result.center[1];
-            sunTimes(lon, lat);
+            getDistricts(lon, lat);
+            createPopup(lon, lat);
             map.getSource('single-point').setData(ev.result.geometry);
             });
+
         });
     </script>
 </body>
