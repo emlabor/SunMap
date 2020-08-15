@@ -55,8 +55,8 @@
          });*/
 
          function getDistricts(lon, lat){
-            var distQuery = "https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/11/query?where=1%3D1&outFields=OBJECTID,WARD,ALD_DIST,SUP_DIST,ASM_DIST,SEN_DIST,ADDRESS,HANDICAP_ACCESS,SPEC_COMMENTS,PHONE_NO,BALLOT_COLOR&geometry=" + lon + "%2C%20" + lat + "&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&returnGeometry=false&outSR=4326&f=json"
-            // Retrieve ward and district data from City of Madison Open Data
+            var distQuery = "https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/11/query?where=1%3D1&outFields=OBJECTID,WARD,ALD_DIST,SUP_DIST,ASM_DIST,SEN_DIST,ADDRESS,HANDICAP_ACCESS,SPEC_COMMENTS,PHONE_NO,BALLOT_COLOR&geometry=" + lon + "%2C%20" + lat + "&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&returnGeometry=false&outSR=4326&f=json";
+
             return new Promise(function(resolve, reject){
                 var distRequest = new XMLHttpRequest();
                 distRequest.onload = function () {
@@ -69,16 +69,36 @@
             });
          }
 
+         function getPollingPlace(ward){
+            var pollQuery = "https://maps.cityofmadison.com/arcgis/rest/services/Public/OPEN_DATA/MapServer/4/query?where=tvpoll_p_WARD%20%3E%3D%20" + ward + "%20AND%20tvpoll_p_WARD%20%3C%3D%20" + ward + "&outFields=tvpoll_p_WARD,tvpoll_p_ADDRESS,tvpoll_p_HANDICAP_ACCESS,tvpoll_p_BLDG_NAME&returnGeometry=false&outSR=4326&f=json";
+            // TODO: make this asynchronous as well without creating a mess
+            var pollRequest = new XMLHttpRequest();
+            pollRequest.open('GET', pollQuery, false);
+            pollRequest.send()
+            var polling = JSON.parse(pollRequest.responseText).features[0].attributes;
+            return polling;
+         }
+
          function createPopup(lon, lat){
             getDistricts(lon, lat).then(function(districts){
             // Ward and aldermanic district will be null for suburbs
             var ward = (districts.WARD == -1) ? 'N/A' : districts.WARD;
             var alder = (districts.ALD_DIST == -1) ? 'N/A' : districts.ALD_DIST;
+            var pollHTML = `<p>Polling location N/A</p>`
+
+            if (ward != 'N/A'){
+                var polling = getPollingPlace(ward);
+                var building = polling.tvpoll_p_BLDG_NAME;
+                var address = polling.tvpoll_p_ADDRESS;
+
+                pollHTML = `<p><b>Polling location (2017) </b><br>${building}<br>${address}<br></h2>`;
+            }
             // Popup appears at the desired coordinates
             var popup = new mapboxgl.Popup({ closeOnClick: false })
                 .setLngLat([lon, lat])
-                .setHTML('<h1>Ward ' + ward + '</h1><p>Aldermanic district ' + alder + '<br>Supervisory district ' + districts.SUP_DIST + '<br>Assembly district ' + districts.ASM_DIST + '<br>Senate district ' + districts.SEN_DIST + '</p>')
+                .setHTML(`<h1>Ward ${ward}</h1>${pollHTML}<p><b>Aldermanic district: </b>${alder}<br><b>Supervisory district: </b>${districts.SUP_DIST}<br><b>Assembly district: </b>${districts.ASM_DIST}<br><b>Senate district: </b>${districts.SEN_DIST}</p>`)
                 .addTo(map);
+
             // TODO: more robust error messages
             }).catch(function(){
                 console.log("An error occured.");
